@@ -4,8 +4,7 @@ import { Package, FolderTree, DollarSign, AlertTriangle, TrendingUp, ArrowRight,
 import { Link } from 'react-router-dom'
 import { fmtCantidadStock } from '../utils/unidades'
 import { fmtFechaCorta } from '../utils/fechas'
-import ContadorCafeMaquina from '../components/ContadorCafeMaquina'
-import { ContadorMilanesas, ContadorCigarrillos, ContadorCategoria } from '../components/ContadorMilanesas'
+import { ContadorCategoria } from '../components/ContadorMilanesas'
 
 const FRECUENCIAS = [
   { value: 'diario', label: 'Diario (cada día a las 06:00)' },
@@ -192,15 +191,6 @@ const Dashboard = () => {
           </button>
         </div>
         <div className="space-y-4">
-          {stats?.cafeMaquina?.actual && (
-            <ContadorCafeMaquina resumen={stats.cafeMaquina} showHistorial />
-          )}
-          {stats?.milanesas?.actual && (
-            <ContadorMilanesas resumen={stats.milanesas} showHistorial />
-          )}
-          {stats?.cigarrillos?.actual && (
-            <ContadorCigarrillos resumen={stats.cigarrillos} showHistorial />
-          )}
           {(stats?.contadoresCategoria || []).map((contador) => (
             <ContadorCategoria
               key={contador.id}
@@ -209,14 +199,11 @@ const Dashboard = () => {
               onEliminar={() => eliminarContador(contador)}
             />
           ))}
-          {!stats?.cafeMaquina?.actual &&
-            !stats?.milanesas?.actual &&
-            !stats?.cigarrillos?.actual &&
-            !(stats?.contadoresCategoria || []).length && (
-              <p className="text-sm text-slate-500 bg-white rounded-xl border border-slate-200 px-4 py-6 text-center">
-                Todavía no hay un contador agregado. Elegí una categoría y cada cuánto se reinicia.
-              </p>
-            )}
+          {!(stats?.contadoresCategoria || []).length && (
+            <p className="text-sm text-slate-500 bg-white rounded-xl border border-slate-200 px-4 py-6 text-center">
+              Todavía no hay un contador agregado. Elegí una categoría y cada cuánto se reinicia.
+            </p>
+          )}
         </div>
       </div>
 
