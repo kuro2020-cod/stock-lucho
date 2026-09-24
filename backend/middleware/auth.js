@@ -29,7 +29,7 @@ export async function authenticate(req, res, next) {
     }
     if (esAccesoLimitado(req) && rutaBloqueadaSinVentas(req.method, req.originalUrl)) {
       return res.status(403).json({
-        error: 'Desde fuera de la red no se puede usar el módulo de Ventas'
+        error: 'El rol EXTERNO no puede usar el módulo de Ventas'
       });
     }
     next();

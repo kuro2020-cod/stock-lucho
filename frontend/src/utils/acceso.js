@@ -14,15 +14,22 @@ export function esHostExterno() {
   return !esHostnameLocalOPrivado(window.location.hostname)
 }
 
-export function esAccesoLimitado(user) {
-  return (
-    String(user?.rol || '').toUpperCase() === 'EXTERNO' ||
-    user?.accesoExterno === true ||
-    esHostExterno()
-  )
+export function esRolExterno(user) {
+  const rol = typeof user === 'string' ? user : user?.rol
+  return String(rol || '').toUpperCase() === 'EXTERNO'
 }
 
-/** Inicio según rol. Desde afuera no hay módulo de Ventas. */
+/** Entró por ngrok / internet (no es la red del local). */
+export function esAccesoRemoto(user) {
+  return Boolean(user?.accesoExterno) || esHostExterno()
+}
+
+/** Solo EXTERNO no puede vender. USER, ADMIN y SUPER sí, también desde el celular. */
+export function esAccesoLimitado(user) {
+  return esRolExterno(user)
+}
+
+/** Inicio según rol. EXTERNO no tiene Ventas. */
 export function rutaHome(user) {
   const admin = esRolAdmin(user?.rol)
   if (esAccesoLimitado(user)) return admin ? '/' : '/faltantes'

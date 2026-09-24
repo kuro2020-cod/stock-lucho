@@ -160,14 +160,14 @@ const UsuarioModal = ({ usuario, onClose }) => {
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             >
-              <option value="USER">USER — vendedor en el local</option>
+              <option value="USER">USER — vendedor (local y celular)</option>
               <option value="ADMIN">ADMIN — acceso completo</option>
               <option value="EXTERNO">EXTERNO — siempre sin Ventas</option>
             </select>
             {formData.rol === 'EXTERNO' && (
               <p className="mt-1 text-xs text-slate-500">
-                Sin Ventas también en el local. ADMIN y USER pueden usar el mismo login desde
-                internet: ahí Ventas se oculta sola.
+                Sin Ventas en el local y por internet. ADMIN y USER pueden vender también
+                desde el celular con el enlace de ngrok.
               </p>
             )}
           </div>
@@ -186,7 +186,7 @@ const UsuarioModal = ({ usuario, onClose }) => {
               </span>
               <span className="block text-xs text-slate-500 mt-0.5">
                 Si está marcado, este usuario puede entrar por el enlace de ngrok con el mismo
-                usuario y clave. Desde afuera no ve Ventas.
+                usuario y clave. USER y ADMIN también pueden vender desde el celular.
               </span>
             </span>
           </label>

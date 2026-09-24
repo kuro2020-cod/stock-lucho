@@ -57,10 +57,10 @@ export function esRolExterno(rol) {
 }
 
 export function esAccesoLimitado(req) {
-  return esRolExterno(req.user?.rol) || esAccesoDesdeFuera(req);
+  return esRolExterno(req.user?.rol);
 }
 
-/** Desde afuera / EXTERNO: todo el sistema excepto registrar ventas (POS). */
+/** Solo el rol EXTERNO no puede registrar ventas (POS). USER/ADMIN/SUPER sí, también por el túnel. */
 export function rutaBloqueadaSinVentas(method, originalUrl) {
   const path = String(originalUrl || '').split('?')[0];
   if (path === '/api/ventas' || path.startsWith('/api/ventas/')) return true;

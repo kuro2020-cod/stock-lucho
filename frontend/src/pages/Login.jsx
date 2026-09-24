@@ -52,8 +52,8 @@ const Login = () => {
               <p className="mt-3 text-xs text-sky-800 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2 flex gap-2 text-left">
                 <Globe size={14} className="shrink-0 mt-0.5" />
                 <span>
-                  Estás entrando por internet. Usá el mismo usuario del local. El módulo de
-                  Ventas no va a estar disponible.
+                  Estás entrando por internet. Usá el mismo usuario del local. USER y ADMIN
+                  pueden vender desde el celular.
                 </span>
               </p>
             )}

@@ -38,7 +38,7 @@ import { useTheme } from '../context/ThemeContext'
 import { fmtMoney, lineasTotalesCierre, lineasRubrosCierre, extraRubroCierre, claseMontoNeto, datosAperturaCierre } from '../utils/cierreCajaDisplay'
 import ArqueoParcialModal from './ArqueoParcialModal'
 import AlertaVencimientos from './AlertaVencimientos'
-import { esAccesoLimitado } from '../utils/acceso'
+import { esAccesoLimitado, esAccesoRemoto } from '../utils/acceso'
 import { esRolAdmin, rolVisible } from '../utils/roles'
 
 const Layout = ({ children }) => {
@@ -47,6 +47,7 @@ const Layout = ({ children }) => {
   const { isDark, toggleTheme } = useTheme()
   const isAdmin = esRolAdmin(user?.rol)
   const limitado = esAccesoLimitado(user)
+  const remoto = esAccesoRemoto(user)
   const cajaBloqueada = !limitado && cajaSesion
   const [isDesktop, setIsDesktop] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true
@@ -252,7 +253,11 @@ const Layout = ({ children }) => {
               <div className="min-w-0">
                 <h1 className="text-lg font-bold text-white leading-tight truncate">Control de Stock</h1>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  {limitado ? 'Acceso remoto · sin Ventas' : 'Gestión integral'}
+                  {limitado
+                    ? 'Acceso remoto · sin Ventas'
+                    : remoto
+                      ? 'Acceso remoto'
+                      : 'Gestión integral'}
                 </p>
               </div>
             </div>
@@ -273,7 +278,7 @@ const Layout = ({ children }) => {
             >
               {user?.rol === 'EXTERNO'
                 ? 'EXTERNO'
-                : limitado
+                : remoto
                   ? `${rolVisible(user?.rol)} · remoto`
                   : rolVisible(user?.rol)}
             </span>
