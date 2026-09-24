@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { Usuario } from '../models/Usuario.js';
-import { esAccesoDesdeFuera, esAccesoLimitado, rutaBloqueadaSinVentas } from '../utils/accesoRed.js';
+import { esAccesoDesdeFuera, esRolExterno, rutaBloqueadaSinVentas } from '../utils/accesoRed.js';
 import { esRolAdmin } from '../utils/roles.js';
 
 export const JWT_SECRET = process.env.JWT_SECRET || 'dev-cambiar-en-produccion';
@@ -27,7 +27,8 @@ export async function authenticate(req, res, next) {
         });
       }
     }
-    if (esAccesoLimitado(req) && rutaBloqueadaSinVentas(req.method, req.originalUrl)) {
+    // USER/ADMIN/SUPER pueden vender también por ngrok. Solo EXTERNO no usa POS.
+    if (esRolExterno(req.user?.rol) && rutaBloqueadaSinVentas(req.method, req.originalUrl)) {
       return res.status(403).json({
         error: 'El rol EXTERNO no puede usar el módulo de Ventas'
       });

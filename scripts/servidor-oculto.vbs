@@ -54,8 +54,12 @@ End If
 Call LogLine("Node: " & nodeExe)
 
 If PuertoEnUso(puerto) Then
-  Call LogLine("OK: ya hay algo escuchando en el puerto " & puerto)
-Else
+  Call LogLine("Reiniciando servidor en puerto " & puerto & " para cargar codigo nuevo")
+  Call LiberarPuerto(puerto)
+  WScript.Sleep 1500
+End If
+
+If Not PuertoEnUso(puerto) Then
   ' Esperar un poco por PostgreSQL al inicio de Windows
   WScript.Sleep 3000
 
@@ -120,6 +124,13 @@ Function FindNode()
   If fso.FileExists(candidate) Then FindNode = candidate : Exit Function
   On Error GoTo 0
 End Function
+
+Sub LiberarPuerto(p)
+  On Error Resume Next
+  sh.Run "cmd /c for /f ""tokens=5"" %a in ('netstat -ano ^| findstr :" & p & " ^| findstr LISTENING') do @taskkill /F /PID %a", 0, True
+  Call LogLine("Pedido de cierre de procesos en puerto " & p)
+  On Error GoTo 0
+End Sub
 
 Function PuertoEnUso(p)
   Dim exec, out

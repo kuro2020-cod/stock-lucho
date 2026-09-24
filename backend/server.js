@@ -135,7 +135,7 @@ const startServer = async () => {
           console.log('   (Usá esa dirección en el navegador de la otra computadora)');
           console.log('');
           console.log('🌍 Acceso desde internet: reenviá el puerto ' + PORT + ' del router a una de esas IPs.');
-          console.log('   Desde internet se ve todo el sistema excepto el módulo de Ventas.');
+          console.log('   Desde internet USER/ADMIN pueden vender; el rol EXTERNO no usa Ventas.');
       } else if (HOST === '0.0.0.0') {
         console.log('');
         console.log('🌐 Red local: no se detectó IP; usá ipconfig para ver la IPv4 de esta PC.');
