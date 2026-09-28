@@ -39,9 +39,12 @@ if errorlevel 1 goto error
 popd
 
 echo.
+echo Cerrando el servidor anterior (sin ventanas extra) para aplicar el codigo nuevo...
+powershell -NoProfile -WindowStyle Hidden -Command "Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; Get-Process ngrok -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue"
+
+echo.
 echo Listo. La interfaz nueva ya esta compilada.
-echo Ahora cierra el sistema si estaba abierto y ejecuta
-echo el acceso directo "Sistema de Stock" o iniciar-stock.bat
+echo Ahora abre el acceso directo "Sistema de Stock" (el servidor arranca solo, sin CMD).
 echo.
 echo Si no abre, ejecuta scripts\diagnosticar.bat y revisa servidor.log
 echo.

@@ -3,6 +3,7 @@
 
 Option Explicit
 Dim fso, sh, scriptDir, proyecto, backend, logFile, envFile, nodeExe, batFile, ts, puerto
+Dim compileBat, compileCode
 
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set sh = CreateObject("WScript.Shell")
@@ -14,6 +15,7 @@ logFile = scriptDir & "\servidor.log"
 envFile = backend & "\.env"
 batFile = scriptDir & "\_arrancar-tmp.bat"
 puerto = 3001
+ExecuteGlobal fso.OpenTextFile(scriptDir & "\_util-proceso.vbs", 1).ReadAll
 
 Call LogLine("---- " & Now & " servidor-oculto.vbs ----")
 Call LogLine("Proyecto: " & proyecto)
@@ -30,13 +32,15 @@ If Not fso.FileExists(envFile) Then
   WScript.Quit 1
 End If
 
-' Si el codigo fuente es mas nuevo que dist, recompilar (tras pegar actualizaciones)
-Dim compileBat, compileExec, compileCode
-compileBat = scriptDir & "\_compilar-frontend-si-hace-falta.bat"
-If fso.FileExists(compileBat) Then
-  Call LogLine("Verificando/compilando frontend si hay cambios...")
-  compileCode = sh.Run("cmd /c """ & compileBat & """ >> """ & logFile & """ 2>&1", 0, True)
-  Call LogLine("Compilacion frontend codigo=" & compileCode)
+' Compilar solo si falta dist (el build diario abre ventanas de npm).
+' Tras un git pull hay que usar actualizar-sistema.bat.
+If Not fso.FileExists(proyecto & "\frontend\dist\index.html") Then
+  compileBat = scriptDir & "\_compilar-frontend-si-hace-falta.bat"
+  If fso.FileExists(compileBat) Then
+    Call LogLine("Compilando frontend (falta dist)...")
+    compileCode = sh.Run("cmd /c """ & compileBat & """ >> """ & logFile & """ 2>&1", 0, True)
+    Call LogLine("Compilacion frontend codigo=" & compileCode)
+  End If
 End If
 
 If Not fso.FileExists(proyecto & "\frontend\dist\index.html") Then
@@ -54,12 +58,8 @@ End If
 Call LogLine("Node: " & nodeExe)
 
 If PuertoEnUso(puerto) Then
-  Call LogLine("Reiniciando servidor en puerto " & puerto & " para cargar codigo nuevo")
-  Call LiberarPuerto(puerto)
-  WScript.Sleep 1500
-End If
-
-If Not PuertoEnUso(puerto) Then
+  Call LogLine("OK: ya hay algo escuchando en el puerto " & puerto)
+Else
   ' Esperar un poco por PostgreSQL al inicio de Windows
   WScript.Sleep 3000
 
@@ -122,25 +122,6 @@ Function FindNode()
   If fso.FileExists(candidate) Then FindNode = candidate : Exit Function
   candidate = sh.ExpandEnvironmentStrings("%LocalAppData%\Programs\nodejs\node.exe")
   If fso.FileExists(candidate) Then FindNode = candidate : Exit Function
-  On Error GoTo 0
-End Function
-
-Sub LiberarPuerto(p)
-  On Error Resume Next
-  sh.Run "cmd /c for /f ""tokens=5"" %a in ('netstat -ano ^| findstr :" & p & " ^| findstr LISTENING') do @taskkill /F /PID %a", 0, True
-  Call LogLine("Pedido de cierre de procesos en puerto " & p)
-  On Error GoTo 0
-End Sub
-
-Function PuertoEnUso(p)
-  Dim exec, out
-  PuertoEnUso = False
-  On Error Resume Next
-  Set exec = sh.Exec("cmd /c netstat -ano | findstr :" & p & " | findstr LISTENING")
-  WScript.Sleep 300
-  out = ""
-  If Not exec.StdOut.AtEndOfStream Then out = exec.StdOut.ReadAll
-  If InStr(1, out, "LISTENING", vbTextCompare) > 0 Then PuertoEnUso = True
   On Error GoTo 0
 End Function
 

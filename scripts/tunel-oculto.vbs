@@ -15,6 +15,7 @@ logFile = scriptDir & "\tunel.log"
 urlFile = scriptDir & "\tunel-url.txt"
 cfgFile = scriptDir & "\tunel-config.txt"
 zipFile = binDir & "\ngrok.zip"
+ExecuteGlobal fso.OpenTextFile(scriptDir & "\_util-proceso.vbs", 1).ReadAll
 
 Call LeerConfig(cfgFile, token, dominio)
 
@@ -53,9 +54,11 @@ End If
 Call GuardarUrl(urlFile, url)
 Call LogLine("Iniciando ngrok " & url)
 
-' cmd /c es necesario: un .bat oculto (Run style 0) a veces no arranca, sobre todo con espacios en la ruta.
-cmd = "cmd.exe /c call """ & scriptDir & "\tunel-fondo.bat"""
-sh.Run cmd, 0, False
+' ngrok.exe es consola: si se lanza con cmd visible, abre ventana negra.
+cmd = "Start-Process -FilePath '" & Replace(exe, "'", "''") & "' -WorkingDirectory '" & Replace(scriptDir, "'", "''") & "' " & _
+     "-ArgumentList 'http','--authtoken=" & Replace(token, "'", "''") & "','--url=" & Replace(dominio, "'", "''") & "','3001' " & _
+     "-WindowStyle Hidden"
+sh.Run "powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -NonInteractive -Command """ & cmd & """", 0, False
 
 WScript.Quit 0
 
@@ -113,15 +116,3 @@ Sub GuardarUrl(path, value)
   t.Close
   On Error GoTo 0
 End Sub
-
-Function ProcesoCorriendo(nombre)
-  Dim exec, out
-  ProcesoCorriendo = False
-  On Error Resume Next
-  Set exec = sh.Exec("cmd /c tasklist /FI ""IMAGENAME eq " & nombre & """ /NH")
-  WScript.Sleep 500
-  out = ""
-  If Not exec.StdOut.AtEndOfStream Then out = exec.StdOut.ReadAll
-  If InStr(1, out, nombre, vbTextCompare) > 0 Then ProcesoCorriendo = True
-  On Error GoTo 0
-End Function

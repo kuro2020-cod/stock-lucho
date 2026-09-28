@@ -1,5 +1,9 @@
 tunel-config.txt
 tunel-url.txt
 tunel.log
+tunel.err
 servidor.log
 bin/
+_arrancar-tmp.bat
+_tunel-tmp.bat
+
