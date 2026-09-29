@@ -1,5 +1,4 @@
 @echo off
-chcp 65001 >nul
 cd /d "%~dp0"
 set "EXE=%~dp0bin\ngrok.exe"
 set "LOG=%~dp0tunel.log"

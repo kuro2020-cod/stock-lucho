@@ -54,11 +54,8 @@ End If
 Call GuardarUrl(urlFile, url)
 Call LogLine("Iniciando ngrok " & url)
 
-' ngrok.exe es consola: si se lanza con cmd visible, abre ventana negra.
-cmd = "Start-Process -FilePath '" & Replace(exe, "'", "''") & "' -WorkingDirectory '" & Replace(scriptDir, "'", "''") & "' " & _
-     "-ArgumentList 'http','--authtoken=" & Replace(token, "'", "''") & "','--url=" & Replace(dominio, "'", "''") & "','3001' " & _
-     "-WindowStyle Hidden"
-sh.Run "powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -NonInteractive -Command """ & cmd & """", 0, False
+' Mismo arranque de siempre (tunel-fondo.bat), pero sin ventana.
+Call ArrancarOculto("cmd.exe /c call """ & scriptDir & "\tunel-fondo.bat""", scriptDir)
 
 WScript.Quit 0
 

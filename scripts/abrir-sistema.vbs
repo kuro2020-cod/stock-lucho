@@ -27,6 +27,9 @@ For i = 1 To 45
 Next
 
 If ok Then
+  If fso.FileExists(scriptDir & "\tunel-oculto.vbs") Then
+    sh.Run "wscript.exe """ & scriptDir & "\tunel-oculto.vbs""", 0, False
+  End If
   sh.Run url, 1, False
 Else
   MsgBox "El sistema no arranco." & vbCrLf & vbCrLf & _
