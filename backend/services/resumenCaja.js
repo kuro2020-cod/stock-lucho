@@ -1,9 +1,4 @@
 import db from '../database/db.js';
-import { SQL_CAFE_MAQUINA, getResumenCafeMaquina } from './cafeMaquina.js';
-import { SQL_MILANESAS } from './milanesas.js';
-import { SQL_SANDWICH_MILANESAS } from './sandwichMilanesas.js';
-import { SQL_ROLLITOS_JAMON_QUESO } from './rollitosJamonQueso.js';
-import { SQL_CIGARRILLOS } from './cigarrillos.js';
 import { condicionPeriodoCaja, fechaLocalISO, normalizarFechaISO } from '../utils/fechaCaja.js';
 import { METODOS_VENTA, metodosVacios, metodosProveedorVacios } from '../utils/metodosPago.js';
 import { aliasesUsuario, esUsuarioVendedor } from '../utils/usuarioAliases.js';
@@ -321,17 +316,6 @@ async function resumenIngresosEfectivo(periodo, filtro = null) {
   };
 }
 
-const SQL_PEDIDOS_YA = `LOWER(COALESCE(m.motivo, '')) LIKE '%pedidos ya%'`;
-
-function normalizarLabelRubro(s) {
-  return String(s || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
 async function resumenContadoresDashboard(periodo, filtro = null) {
   const configs = await db.all(
     `
@@ -377,250 +361,14 @@ async function resumenContadoresDashboard(periodo, filtro = null) {
   return out;
 }
 
-async function resumenPedidosYa(periodo, filtro = null) {
-  const condFecha = condicionPeriodoCaja('m', periodo);
-  const condUsuario = condicionUsuarioMovimiento('m', filtro);
-  const params = [...condFecha.params, ...condUsuario.params];
-
-  const row = await db.get(
-    `
-    SELECT
-      COALESCE(SUM(m.cantidad * COALESCE(m.precio_unitario, 0)), 0)::numeric AS total,
-      COUNT(*)::int AS movimientos,
-      COALESCE(SUM(m.cantidad), 0)::numeric AS unidades
-    FROM movimientos m
-    WHERE m.tipo = 'salida'
-      AND ${condFecha.sql}${condUsuario.sql}
-      AND ${SQL_PEDIDOS_YA}
-  `,
-    params
-  );
-
-  const rowsDesglose = await db.all(
-    `
-    SELECT
-      e.key AS metodo,
-      COALESCE(SUM((e.value)::numeric), 0)::numeric AS total
-    FROM movimientos m
-    CROSS JOIN LATERAL jsonb_each_text(m.pagos_desglose) AS e(key, value)
-    WHERE m.tipo = 'salida'
-      AND ${condFecha.sql}${condUsuario.sql}
-      AND ${SQL_PEDIDOS_YA}
-      AND m.pagos_desglose IS NOT NULL
-      AND jsonb_typeof(m.pagos_desglose) = 'object'
-      AND m.pagos_desglose <> '{}'::jsonb
-      AND e.key IN ('efectivo', 'transferencia', 'tarjeta', 'fiado')
-    GROUP BY e.key
-  `,
-    params
-  );
-
-  const rowsSimple = await db.all(
-    `
-    SELECT
-      COALESCE(NULLIF(m.metodo_pago, 'mixto'), 'sin_definir') AS metodo_pago,
-      COALESCE(SUM(m.cantidad * COALESCE(m.precio_unitario, 0)), 0)::numeric AS total
-    FROM movimientos m
-    WHERE m.tipo = 'salida'
-      AND ${condFecha.sql}${condUsuario.sql}
-      AND ${SQL_PEDIDOS_YA}
-      AND (
-        m.pagos_desglose IS NULL
-        OR m.pagos_desglose = '{}'::jsonb
-        OR jsonb_typeof(m.pagos_desglose) <> 'object'
-      )
-      AND (m.metodo_pago IS NULL OR m.metodo_pago <> 'mixto')
-    GROUP BY COALESCE(NULLIF(m.metodo_pago, 'mixto'), 'sin_definir')
-  `,
-    params
-  );
-
-  let efectivo = 0;
-  let transferencia = 0;
-  for (const r of [...(rowsDesglose || []), ...(rowsSimple || [])]) {
-    const key = String(r.metodo || r.metodo_pago || '').toLowerCase();
-    const val = Number(r.total || 0);
-    if (key === 'efectivo') efectivo += val;
-    if (key === 'transferencia') transferencia += val;
-  }
-
-  return {
-    key: 'pedidos_ya',
-    label: 'PEDIDOS YA',
-    total: round2(row?.total ?? 0),
-    movimientos: Number(row?.movimientos ?? 0),
-    unidades: Number(row?.unidades ?? 0),
-    efectivo: round2(efectivo),
-    transferencia: round2(transferencia)
-  };
-}
-
-/** Rubros a discriminar en arqueo / cierre (por nombre o categoría del producto). */
-const RUBROS_ESPECIALES = [
-  {
-    key: 'milanesas',
-    label: 'MILANESAS',
-    sql: SQL_MILANESAS
-  },
-  {
-    key: 'sandwich_milanesas',
-    label: 'SANDWICH MILANESAS',
-    sql: SQL_SANDWICH_MILANESAS
-  },
-  {
-    key: 'rollitos_jamon_queso',
-    label: 'ROLLITOS JAMÓN Y QUESO',
-    sql: SQL_ROLLITOS_JAMON_QUESO
-  },
-  {
-    key: 'cigarrillos',
-    label: 'CIGARRILLOS',
-    sql: SQL_CIGARRILLOS
-  },
-  {
-    key: 'cafe_maquina',
-    label: 'CAFÉ (MÁQUINA)',
-    sql: SQL_CAFE_MAQUINA
-  },
-  {
-    key: 'electronica',
-    label: 'ELECTRONICA',
-    sql: `(
-      LOWER(p.nombre) LIKE '%electronic%'
-      OR LOWER(p.nombre) LIKE '%electrónic%'
-      OR LOWER(COALESCE(c.nombre, '')) LIKE '%electronic%'
-      OR LOWER(COALESCE(c.nombre, '')) LIKE '%electrónic%'
-    )`
-  }
-];
-
+/** Solo categorías agregadas en el dashboard (Agregar contador). */
 async function resumenRubrosEspeciales(periodo, filtro = null) {
-  const condFecha = condicionPeriodoCaja('m', periodo);
-  const condUsuario = condicionUsuarioMovimiento('m', filtro);
-  const params = [...condFecha.params, ...condUsuario.params];
   const out = {};
-
-  for (const rubro of RUBROS_ESPECIALES) {
-    let row;
-
-    if (rubro.key === 'cafe_maquina') {
-      // Café suelto → precio de esa venta.
-      // Café en promo → una sola vez el total completo de la promo (ej. $1600),
-      // no el prorrateo ni solo el precio de lista del café.
-      row = await db.get(
-        `
-        WITH cafe_base AS (
-          SELECT
-            m.id,
-            m.cantidad,
-            m.precio_unitario,
-            m.promo_id,
-            m.venta_grupo_id
-          FROM movimientos m
-          JOIN productos p ON p.id = m.producto_id
-          LEFT JOIN categorias c ON c.id = p.categoria_id
-          WHERE m.tipo = 'salida'
-            AND ${condFecha.sql}${condUsuario.sql}
-            AND ${SQL_CAFE_MAQUINA}
-        ),
-        aportes AS (
-          SELECT (cb.cantidad * COALESCE(cb.precio_unitario, 0))::numeric AS aporte
-          FROM cafe_base cb
-          WHERE cb.promo_id IS NULL
-
-          UNION ALL
-
-          SELECT SUM(m2.cantidad * COALESCE(m2.precio_unitario, 0))::numeric AS aporte
-          FROM (
-            SELECT DISTINCT venta_grupo_id, promo_id
-            FROM cafe_base
-            WHERE promo_id IS NOT NULL
-              AND venta_grupo_id IS NOT NULL
-          ) g
-          JOIN movimientos m2
-            ON m2.venta_grupo_id = g.venta_grupo_id
-           AND m2.promo_id = g.promo_id
-           AND m2.tipo = 'salida'
-          GROUP BY g.venta_grupo_id, g.promo_id
-
-          UNION ALL
-
-          SELECT (cb.cantidad * COALESCE(cb.precio_unitario, 0))::numeric AS aporte
-          FROM cafe_base cb
-          WHERE cb.promo_id IS NOT NULL
-            AND cb.venta_grupo_id IS NULL
-        )
-        SELECT
-          COALESCE((SELECT SUM(aporte) FROM aportes), 0)::numeric AS total,
-          (SELECT COUNT(*)::int FROM cafe_base) AS movimientos,
-          COALESCE((SELECT SUM(cantidad) FROM cafe_base), 0)::numeric AS unidades
-      `,
-        params
-      );
-    } else {
-      row = await db.get(
-        `
-        SELECT
-          COALESCE(SUM(m.cantidad * COALESCE(m.precio_unitario, 0)), 0)::numeric AS total,
-          COUNT(*)::int AS movimientos,
-          COALESCE(SUM(m.cantidad), 0)::numeric AS unidades
-        FROM movimientos m
-        JOIN productos p ON p.id = m.producto_id
-        LEFT JOIN categorias c ON c.id = p.categoria_id
-        WHERE m.tipo = 'salida'
-          AND ${condFecha.sql}${condUsuario.sql}
-          AND ${rubro.sql}
-      `,
-        params
-      );
-    }
-
-    out[rubro.key] = {
-      key: rubro.key,
-      label: rubro.label,
-      total: round2(row?.total ?? 0),
-      movimientos: Number(row?.movimientos ?? 0),
-      unidades: Number(row?.unidades ?? 0)
-    };
-  }
-
-  const pedidosYa = await resumenPedidosYa(periodo, filtro);
-  out.pedidos_ya = pedidosYa;
-
-  const lista = [
-    {
-      key: 'milanesas',
-      label: 'MILANESAS',
-      total: round2(
-        Number(out.milanesas?.total || 0) +
-          Number(out.sandwich_milanesas?.total || 0) +
-          Number(out.rollitos_jamon_queso?.total || 0)
-      ),
-      movimientos:
-        Number(out.milanesas?.movimientos || 0) +
-        Number(out.sandwich_milanesas?.movimientos || 0) +
-        Number(out.rollitos_jamon_queso?.movimientos || 0),
-      unidades:
-        Number(out.milanesas?.unidades || 0) +
-        Number(out.sandwich_milanesas?.unidades || 0) +
-        Number(out.rollitos_jamon_queso?.unidades || 0)
-    },
-    out.cigarrillos,
-    out.cafe_maquina,
-    out.electronica,
-    pedidosYa
-  ];
-
-  const labelsUsados = new Set(lista.map((r) => normalizarLabelRubro(r?.label)));
-  const contadores = await resumenContadoresDashboard(periodo, filtro);
-  for (const contador of contadores) {
-    const norm = normalizarLabelRubro(contador.label);
-    if (norm && labelsUsados.has(norm)) continue;
-    if (norm) labelsUsados.add(norm);
+  const lista = [];
+  for (const contador of await resumenContadoresDashboard(periodo, filtro)) {
     out[contador.key] = contador;
     lista.push(contador);
   }
-
   return { ...out, lista };
 }
 
@@ -782,7 +530,6 @@ export function construirDetalleCierre(
   neto,
   rubros = null,
   retirosEfectivo = null,
-  cafeMaquina = null,
   ingresosEfectivo = null
 ) {
   const ventasPlano = {};
@@ -822,7 +569,9 @@ export function construirDetalleCierre(
   };
 
   const rubrosGuardar = rubros
-    ? Object.entries(rubros).filter(([k, v]) => k !== 'lista' && v && typeof v === 'object')
+    ? Object.entries(rubros).filter(
+        ([k, v]) => k !== 'lista' && String(k).startsWith('contador_') && v && typeof v === 'object'
+      )
     : [];
   if (rubrosGuardar.length) {
     detalle.rubros = {};
@@ -868,17 +617,6 @@ export function construirDetalleCierre(
         registrado_por: r.registrado_por,
         fecha: r.fecha
       }))
-    };
-  }
-
-  if (cafeMaquina?.actual) {
-    detalle.cafe_maquina_mes = {
-      mes: cafeMaquina.actual.mes,
-      unidades: cafeMaquina.actual.unidades,
-      movimientos: cafeMaquina.actual.movimientos,
-      umbral: cafeMaquina.umbral ?? cafeMaquina.actual.umbral,
-      exceso: Boolean(cafeMaquina.actual.exceso),
-      excedente: cafeMaquina.actual.excedente || 0
     };
   }
 
@@ -961,7 +699,6 @@ export async function getResumenCaja(fecha, options = {}) {
   const ingresosEfectivo = await resumenIngresosEfectivo(periodo, filtro);
   const cobrosFiados = await resumenCobrosFiados(periodo, filtro);
   const rubros = await resumenRubrosEspeciales(periodo, filtro);
-  const cafeMaquina = await getResumenCafeMaquina({ historialLimit: 6 });
   const metodos = calcularNeto(
     ventas.metodos,
     proveedores.metodos,
@@ -1008,7 +745,6 @@ export async function getResumenCaja(fecha, options = {}) {
     ingresosEfectivo,
     cobrosFiados,
     rubros,
-    cafeMaquina,
     metodos,
     totalMovimientos: ventas.totalMovimientos,
     totalGeneralVentas,
@@ -1024,7 +760,6 @@ export async function getResumenCaja(fecha, options = {}) {
       metodos,
       rubros,
       retirosEfectivo,
-      cafeMaquina,
       ingresosEfectivo
     )
   };

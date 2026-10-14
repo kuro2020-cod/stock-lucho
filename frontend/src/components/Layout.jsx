@@ -35,7 +35,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { fmtMoney, lineasTotalesCierre, lineasRubrosCierre, extraRubroCierre, claseMontoNeto, datosAperturaCierre } from '../utils/cierreCajaDisplay'
+import { fmtMoney, lineasTotalesCierre, lineasRubrosCierre, claseMontoNeto, datosAperturaCierre } from '../utils/cierreCajaDisplay'
 import ArqueoParcialModal from './ArqueoParcialModal'
 import AlertaVencimientos from './AlertaVencimientos'
 import { esAccesoLimitado, esAccesoRemoto } from '../utils/acceso'
@@ -519,8 +519,6 @@ const Layout = ({ children }) => {
                       {rubrosCierre.map((rubro) => {
                         const { key, label, total, movimientos, unidades } = rubro
                         const u = Number(unidades) || 0
-                        const esCafe = key === 'cafe_maquina'
-                        const extra = extraRubroCierre(rubro)
                         return (
                           <div key={key} className="flex justify-between gap-3 text-sm">
                             <span className="text-slate-600 dark:text-slate-300">{label}</span>
@@ -529,57 +527,14 @@ const Layout = ({ children }) => {
                               <span className="ml-1 text-[10px] font-normal text-slate-500 dark:text-slate-400 block sm:inline">
                                 ({movimientos} mov.
                                 {u > 0
-                                  ? ` · ${u.toLocaleString('es-ES', { maximumFractionDigits: 3 })} ${
-                                      esCafe ? 'café(s)' : 'u.'
-                                    }`
-                                  : esCafe
-                                    ? ' · 0 cafés'
-                                    : ''}
+                                  ? ` · ${u.toLocaleString('es-ES', { maximumFractionDigits: 3 })} u.`
+                                  : ''}
                                 )
                               </span>
-                              {extra ? (
-                                <span className="block text-[10px] font-normal text-rose-700 dark:text-rose-300">
-                                  {extra}
-                                </span>
-                              ) : null}
                             </span>
                           </div>
                         )
                       })}
-                      {(() => {
-                        const cafeMes = (() => {
-                          try {
-                            const d =
-                              typeof cierreTurno?.detalle_metodos === 'string'
-                                ? JSON.parse(cierreTurno.detalle_metodos)
-                                : cierreTurno?.detalle_metodos
-                            return d?.cafe_maquina_mes || null
-                          } catch {
-                            return null
-                          }
-                        })()
-                        if (!cafeMes) return null
-                        return (
-                          <div
-                            className={`mt-2 rounded-lg border px-2.5 py-2 text-xs ${
-                              cafeMes.exceso
-                                ? 'border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-500/50 dark:bg-rose-950/50 dark:text-rose-200'
-                                : 'border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-200'
-                            }`}
-                          >
-                            <p className="font-bold uppercase tracking-wide">
-                              Café máquina del mes
-                              {cafeMes.exceso ? ' · Exceso' : ''}
-                            </p>
-                            <p className="tabular-nums font-semibold mt-0.5">
-                              {Number(cafeMes.unidades || 0).toLocaleString('es-ES', {
-                                maximumFractionDigits: 3
-                              })}{' '}
-                              / {Number(cafeMes.umbral || 400).toLocaleString('es-ES')} u.
-                            </p>
-                          </div>
-                        )
-                      })()}
                     </div>
                   )}
                   <div className="flex justify-between gap-3 text-sm pt-2 mt-2 border-t border-slate-200 dark:border-slate-600 font-bold">

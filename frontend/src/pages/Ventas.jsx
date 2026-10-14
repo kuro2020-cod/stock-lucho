@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { productosAPI, ventasAPI, promocionesAPI, incidenciasAPI, fiadosAPI, cajaAPI, cafeMaquinaAPI, mercadopagoAPI, retirosAPI } from '../services/api'
+import { productosAPI, ventasAPI, promocionesAPI, incidenciasAPI, fiadosAPI, cajaAPI, mercadopagoAPI, retirosAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useCarrito } from '../context/CarritoContext'
 import InicioCajaModal from '../components/InicioCajaModal'
@@ -19,8 +19,6 @@ import {
   AlertCircle,
   AlertTriangle,
   Info,
-  Coffee,
-  RotateCcw,
   X,
   Tag
 } from 'lucide-react'
@@ -176,7 +174,6 @@ const Ventas = () => {
   const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [reiniciandoCafe, setReiniciandoCafe] = useState(false)
   /** Payload listo + monto transferencia: se confirma tras verificar MP / cobro QR. */
   const [verifTransferencia, setVerifTransferencia] = useState(null)
   /** Si hay POS configurado, usar cobro QR con monto; si no, modal de verificación manual. */
@@ -293,46 +290,6 @@ const Ventas = () => {
     })
     marcarRestauracionVista()
   }, [restauradoDesdeStorage, cart.length, showToast, marcarRestauracionVista])
-
-  const reiniciarContadorCafe = useCallback(async () => {
-    if (reiniciandoCafe) return
-    let unidades = 0
-    try {
-      const { data } = await cafeMaquinaAPI.getResumen({ historialLimit: 1 })
-      unidades = Number(data?.actual?.unidades || 0)
-    } catch {
-      /* si falla el preview, igual se puede reiniciar */
-    }
-
-    const ok = window.confirm(
-      unidades > 0
-        ? `¿Reiniciar el contador de café máquina?\n\nSe registrará en Movimientos que se vendieron ${unidades.toLocaleString('es-ES')} café(s) y el contador vuelve a 0.`
-        : '¿Reiniciar el contador de café máquina?\n\nEl contador ya está en 0; se dejará igualmente el registro en Movimientos.'
-    )
-    if (!ok) return
-
-    setReiniciandoCafe(true)
-    try {
-      const { data } = await cafeMaquinaAPI.reiniciar()
-      const u = Number(data?.unidadesAntes || 0)
-      showToast({
-        type: 'msg',
-        variant: 'info',
-        message:
-          u > 0
-            ? `Contador café reiniciado. Se reportaron ${u.toLocaleString('es-ES')} venta(s) en Movimientos.`
-            : 'Contador café reiniciado (estaba en 0). Registro creado en Movimientos.'
-      })
-    } catch (e) {
-      showToast({
-        type: 'msg',
-        variant: 'error',
-        message: e.response?.data?.error || 'No se pudo reiniciar el contador de café'
-      })
-    } finally {
-      setReiniciandoCafe(false)
-    }
-  }, [reiniciandoCafe, showToast])
 
   useEffect(() => {
     return () => {
@@ -1918,15 +1875,6 @@ const Ventas = () => {
           })
         }, 3200)
       }
-      if (data?.cafeMaquina?.exceso && (cart || []).some((l) => esNombreCafeMaquina(l.nombre))) {
-        setTimeout(() => {
-          showToast({
-            type: 'msg',
-            variant: 'warn',
-            message: `Alerta café máquina: ${Number(data.cafeMaquina.unidades).toLocaleString('es-ES')} / ${data.cafeMaquina.umbral} este mes (exceso)`
-          })
-        }, 3200)
-      }
       setCart([])
       setMetodoPago('')
       setPagoCombinado(false)
@@ -2298,22 +2246,6 @@ const Ventas = () => {
           Ventas
         </h2>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={reiniciarContadorCafe}
-            disabled={reiniciandoCafe || necesitaApertura}
-            className="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm shadow-sm disabled:opacity-50"
-            title="Pone el contador en 0 y deja el reporte en Movimientos"
-          >
-            {reiniciandoCafe ? (
-              <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Coffee size={18} />
-            )}
-            <RotateCcw size={16} className="opacity-90" />
-            <span className="sm:hidden">Reiniciar café</span>
-            <span className="hidden sm:inline">Reiniciar contador café</span>
-          </button>
           <button
             type="button"
             onClick={abrirConsultar}

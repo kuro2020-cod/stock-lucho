@@ -90,19 +90,19 @@ export function claseMontoNeto(n) {
   return 'text-gray-900 dark:text-slate-100'
 }
 
-/** Rubros discriminados (milanesas unificadas como en el dashboard). */
-const KEYS_MILANESAS_UNIFICADAS = ['milanesas', 'sandwich_milanesas', 'rollitos_jamon_queso']
-const ORDEN_RUBROS_RESTO = ['cigarrillos', 'cafe_maquina', 'electronica', 'pedidos_ya']
-
 export const SUBTITULO_RUBROS_CIERRE =
-  'Milanesas (incluye sandwich y rollitos), cigarrillos, café máquina, electrónica, Pedidos Ya y las categorías agregadas al dashboard'
+  'Solo las categorías agregadas en el dashboard con Agregar contador'
 
-export function extraRubroCierre(r) {
-  if (!r || r.key !== 'pedidos_ya') return ''
-  const ef = Number(r.efectivo || 0)
-  const tr = Number(r.transferencia || 0)
-  if (ef <= 0 && tr <= 0) return ''
-  return `Efectivo ${fmtMoney(ef)} · Transf. ${fmtMoney(tr)}`
+export function extraRubroCierre() {
+  return ''
+}
+
+export function esRubroContadorDashboard(key) {
+  return String(key || '').startsWith('contador_')
+}
+
+export function listaRubrosDashboard(lista) {
+  return (Array.isArray(lista) ? lista : []).filter((r) => esRubroContadorDashboard(r?.key))
 }
 
 export function lineasRubrosCierre(cierre) {
@@ -110,52 +110,27 @@ export function lineasRubrosCierre(cierre) {
   const rubros = detalle?.rubros
   if (!rubros || typeof rubros !== 'object') return []
 
-  const tomar = (key) => {
+  const keys = Object.keys(rubros)
+    .filter((key) => esRubroContadorDashboard(key))
+    .sort((a, b) => {
+      const na = Number(a.slice(10))
+      const nb = Number(b.slice(10))
+      if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
+      return a.localeCompare(b)
+    })
+
+  const out = []
+  for (const key of keys) {
     const r = rubros[key]
-    if (!r || typeof r !== 'object') return null
-    return {
+    if (!r || typeof r !== 'object') continue
+    out.push({
       key,
       label: r.label || key,
       total: Number(r.total ?? 0),
       movimientos: Number(r.movimientos ?? 0),
-      unidades: Number(r.unidades ?? 0),
-      efectivo: r.efectivo != null ? Number(r.efectivo) : null,
-      transferencia: r.transferencia != null ? Number(r.transferencia) : null
-    }
-  }
-
-  const milanesasParts = KEYS_MILANESAS_UNIFICADAS.map(tomar).filter(Boolean)
-  const out = []
-
-  if (milanesasParts.length > 0) {
-    out.push({
-      key: 'milanesas',
-      label: 'MILANESAS',
-      total: milanesasParts.reduce((s, r) => s + r.total, 0),
-      movimientos: milanesasParts.reduce((s, r) => s + r.movimientos, 0),
-      unidades: milanesasParts.reduce((s, r) => s + r.unidades, 0)
+      unidades: Number(r.unidades ?? 0)
     })
   }
-
-  for (const key of ORDEN_RUBROS_RESTO) {
-    const r = tomar(key)
-    if (r) out.push(r)
-  }
-
-  const conocidos = new Set([...KEYS_MILANESAS_UNIFICADAS, ...ORDEN_RUBROS_RESTO])
-  const extras = Object.keys(rubros)
-    .filter((key) => !conocidos.has(key))
-    .sort((a, b) => {
-      const na = a.startsWith('contador_') ? Number(a.slice(10)) : Number.NaN
-      const nb = b.startsWith('contador_') ? Number(b.slice(10)) : Number.NaN
-      if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
-      return a.localeCompare(b)
-    })
-  for (const key of extras) {
-    const r = tomar(key)
-    if (r) out.push(r)
-  }
-
   return out
 }
 

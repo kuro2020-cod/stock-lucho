@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { X, ClipboardList, RefreshCw } from 'lucide-react'
 import { cierreCajaAPI } from '../services/api'
 import { hoyLocalISO } from '../utils/fechas'
-import { claseMontoNeto, extraRubroCierre, fmtMoney, SUBTITULO_RUBROS_CIERRE } from '../utils/cierreCajaDisplay'
+import { claseMontoNeto, fmtMoney, listaRubrosDashboard, SUBTITULO_RUBROS_CIERRE } from '../utils/cierreCajaDisplay'
 
 const labels = {
   efectivo: 'EFECTIVO',
@@ -155,7 +155,7 @@ const ArqueoParcialModal = ({ open, onClose }) => {
                 negativo
               />
 
-              {Array.isArray(resumen?.rubros?.lista) && resumen.rubros.lista.length > 0 && (
+              {listaRubrosDashboard(resumen?.rubros?.lista).length > 0 && (
                 <div className="space-y-2">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
@@ -166,19 +166,13 @@ const ArqueoParcialModal = ({ open, onClose }) => {
                     </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-                    {resumen.rubros.lista.map((r) => (
+                    {listaRubrosDashboard(resumen?.rubros?.lista).map((r) => (
                       <div
                         key={r.key}
-                        className={`rounded-xl border p-3 ${
-                          r.key === 'pedidos_ya'
-                            ? 'bg-rose-50 border-rose-200'
-                            : 'bg-white border-violet-200'
-                        }`}
+                        className="rounded-xl border p-3 bg-white border-violet-200"
                       >
                         <p className="text-xs text-gray-500 font-semibold">{r.label}</p>
-                        <p className={`text-lg font-bold mt-1 tabular-nums ${
-                          r.key === 'pedidos_ya' ? 'text-rose-900' : 'text-violet-900'
-                        }`}>
+                        <p className="text-lg font-bold mt-1 tabular-nums text-violet-900">
                           {fmtMoney(r.total)}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
@@ -187,9 +181,6 @@ const ArqueoParcialModal = ({ open, onClose }) => {
                           })}{' '}
                           u.
                         </p>
-                        {extraRubroCierre(r) ? (
-                          <p className="text-[11px] text-rose-800 mt-1">{extraRubroCierre(r)}</p>
-                        ) : null}
                       </div>
                     ))}
                   </div>
