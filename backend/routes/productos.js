@@ -1,5 +1,6 @@
 import express from 'express';
 import { Producto } from '../models/Producto.js';
+import { Movimiento } from '../models/Movimiento.js';
 import { requireAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -78,7 +79,7 @@ router.get('/:id', async (req, res) => {
 // Crear nuevo producto
 router.post('/', async (req, res) => {
   try {
-    const producto = await Producto.create(req.body);
+    const producto = await Producto.create(req.body, Movimiento._etiquetaUsuario(req.user));
     res.status(201).json(producto);
   } catch (error) {
     res.status(500).json({ error: error.message });

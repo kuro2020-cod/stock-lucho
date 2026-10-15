@@ -315,13 +315,17 @@ const ProductoModal = ({
 
       if (producto || productoExistenteId) {
         const idEditar = producto?.id || productoExistenteId
+        const { stock_actual: stockForm, cantidad_ingreso: _ci, ...datosForm } = formData
+        const stockOriginal = Number(producto?.stock_actual) || 0
+        const stockNuevo = Number(stockForm) || 0
+        const cambioStock = !noControla && Math.abs(stockNuevo - stockOriginal) > 1e-9
         await productosAPI.update(idEditar, {
-          ...formData,
+          ...datosForm,
           precio_compra: precioCompra,
           precio_venta: precioVenta,
           no_controla_stock: noControla,
           no_verifica_vencimiento: noVerifica,
-          stock_actual: noControla ? 0 : Number(formData.stock_actual) || 0,
+          ...(cambioStock ? { stock_actual: stockNuevo, stock_actual_original: stockOriginal } : {}),
           stock_minimo: noControla ? 0 : Number(formData.stock_minimo) || 0,
           categoria_id: catId,
           fecha_vencimiento: fechaVenc

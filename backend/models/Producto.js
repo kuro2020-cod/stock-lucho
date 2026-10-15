@@ -119,7 +119,7 @@ export class Producto {
     return String(max + 1n);
   }
 
-  static async create(productoData) {
+  static async create(productoData, usuario = 'Sistema') {
     const { codigo, nombre, descripcion, categoria_id, precio_compra, precio_venta, stock_actual, stock_minimo, unidad_medida, no_controla_stock, no_verifica_vencimiento } = productoData;
     const noControla = esFlagActivo(no_controla_stock);
     const noVerifica = esFlagActivo(no_verifica_vencimiento);
@@ -151,12 +151,25 @@ export class Producto {
       throw new Error('El stock no puede ser negativo');
     }
 
-    const result = await db.run(`
-      INSERT INTO productos (codigo, nombre, descripcion, categoria_id, precio_compra, precio_venta, stock_actual, stock_minimo, unidad_medida, no_controla_stock, no_verifica_vencimiento, fecha_vencimiento)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [codigo || null, nombre.trim(), descripcion?.trim() || null, categoria_id || null, precio_compra || 0, precio_venta || 0, sa, sm, unidad_medida || 'unidad', noControla, noVerifica, fechaVenc]);
+    // El stock inicial queda como movimiento de entrada para que la carga figure en el historial.
+    const lastID = await db.transaction(async ({ run }) => {
+      const result = await run(`
+        INSERT INTO productos (codigo, nombre, descripcion, categoria_id, precio_compra, precio_venta, stock_actual, stock_minimo, unidad_medida, no_controla_stock, no_verifica_vencimiento, fecha_vencimiento)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [codigo || null, nombre.trim(), descripcion?.trim() || null, categoria_id || null, precio_compra || 0, precio_venta || 0, sa, sm, unidad_medida || 'unidad', noControla, noVerifica, fechaVenc]);
+      if (sa > 0) {
+        await run(
+          `
+          INSERT INTO movimientos (producto_id, tipo, cantidad, motivo, usuario)
+          VALUES (?, 'entrada', ?, 'Stock inicial (alta de producto)', ?)
+        `,
+          [result.lastID, sa, usuario || 'Sistema']
+        );
+      }
+      return result.lastID;
+    });
 
-    return this.getById(result.lastID);
+    return this.getById(lastID);
   }
 
   static async update(id, productoData) {
@@ -191,6 +204,18 @@ export class Producto {
 
     const tocarStock = Object.prototype.hasOwnProperty.call(productoData, 'stock_actual');
     const tocarMinimo = Object.prototype.hasOwnProperty.call(productoData, 'stock_minimo');
+    // Sin stock en el pedido, el UPDATE deja la columna como está: así no se pisan
+    // entradas o ventas hechas por otro usuario mientras se editaba el producto.
+    const escribirStock = noControla || tocarStock;
+    // Con stock_actual_original se aplica la diferencia que hizo el usuario sobre el stock
+    // real del momento, para conservar ventas o cargas hechas mientras tenía el formulario abierto.
+    const deltaStock =
+      !noControla && tocarStock && productoData.stock_actual_original != null
+        ? Number(stock_actual) - Number(productoData.stock_actual_original)
+        : null;
+    if (deltaStock != null && Number.isNaN(deltaStock)) {
+      throw new Error('Stock inválido');
+    }
     const sa = noControla
       ? 0
       : tocarStock
@@ -213,12 +238,22 @@ export class Producto {
     await db.run(`
       UPDATE productos
       SET codigo = ?, nombre = ?, descripcion = ?, categoria_id = ?, 
-          precio_compra = ?, precio_venta = ?, stock_actual = ?, 
+          precio_compra = ?, precio_venta = ?, ${
+            deltaStock != null
+              ? 'stock_actual = GREATEST(stock_actual + ?, 0),'
+              : escribirStock
+                ? 'stock_actual = ?,'
+                : ''
+          }
           stock_minimo = ?, unidad_medida = ?, no_controla_stock = ?,
           no_verifica_vencimiento = ?, fecha_vencimiento = ?,
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `, [codigo || null, nombre.trim(), descripcion?.trim() || null, catId, precio_compra || 0, precio_venta || 0, sa, sm, unidad_medida || 'unidad', noControla, noVerifica, fechaVenc, id]);
+    `, [
+      codigo || null, nombre.trim(), descripcion?.trim() || null, catId, precio_compra || 0, precio_venta || 0,
+      ...(deltaStock != null ? [deltaStock] : escribirStock ? [sa] : []),
+      sm, unidad_medida || 'unidad', noControla, noVerifica, fechaVenc, id
+    ]);
 
     return this.getById(id);
   }
