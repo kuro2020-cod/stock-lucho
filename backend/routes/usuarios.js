@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const usuarios = await Usuario.getAll();
+    const usuarios = await Usuario.getAll(req.user);
     res.json(usuarios);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const usuario = await Usuario.getById(req.params.id);
+    const usuario = await Usuario.getById(req.params.id, req.user || {});
     if (!usuario) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }

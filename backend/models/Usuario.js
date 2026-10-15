@@ -12,20 +12,24 @@ function asBool(v, def = true) {
 }
 
 export class Usuario {
-  static async getAll() {
+  static async getAll(actor = null) {
+    const ocultarSuper = !esRolSuper(actor?.rol);
     // No pedir created_at: tablas creadas a mano a veces no tienen esa columna y la query fallaba en silencio en el front
     return db.all(`
       SELECT id, nombre, apellido, dni, usuario, rol, acceso_externo
       FROM usuario
+      ${ocultarSuper ? "WHERE UPPER(rol) <> 'SUPER'" : ''}
       ORDER BY apellido, nombre
     `);
   }
 
-  static async getById(id) {
+  static async getById(id, actor = null) {
+    const ocultarSuper = actor !== null && !esRolSuper(actor?.rol);
     return db.get(
       `
       SELECT id, nombre, apellido, dni, usuario, rol, acceso_externo
       FROM usuario WHERE id = ?
+      ${ocultarSuper ? "AND UPPER(rol) <> 'SUPER'" : ''}
     `,
       [id]
     );
