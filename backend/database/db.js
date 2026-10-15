@@ -795,24 +795,6 @@ const initDatabase = async () => {
         ON dashboard_contador_reinicios(contador_id, created_at DESC)
     `);
 
-    // Categorías de ejemplo solo en base vacía (si no, al borrar una y reiniciar el servidor volverían a insertarse)
-    const { rows: countRows } = await query(`SELECT COUNT(*)::int AS n FROM categorias`);
-    const totalCategorias = countRows[0]?.n ?? 0;
-    if (totalCategorias === 0) {
-      const categoriasEjemplo = [
-        ['Electrónica', 'Productos electrónicos y componentes'],
-        ['Ropa', 'Prendas de vestir y accesorios'],
-        ['Alimentos', 'Productos alimenticios'],
-        ['Hogar', 'Artículos para el hogar']
-      ];
-      for (const [nombre, descripcion] of categoriasEjemplo) {
-        await query(
-          `INSERT INTO categorias (nombre, descripcion) VALUES ($1, $2)`,
-          [nombre, descripcion]
-        );
-      }
-    }
-
     console.log('Base de datos inicializada correctamente');
   } catch (error) {
     console.error('Error al inicializar la base de datos:', error);
